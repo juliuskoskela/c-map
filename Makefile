@@ -11,7 +11,7 @@ TEST=test.c
 OBJ=$(BIN)/$(SRC:.c=.o)
 CC=gcc
 OLEVEL=-O3
-WFLAGS= -Wall -Wextra -Werror -Wpedantic -Wunused
+WFLAGS= -Wall -Wextra -Werror -Wunused
 
 all: shared static
 

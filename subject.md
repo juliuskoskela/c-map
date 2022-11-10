@@ -16,7 +16,7 @@ In this subject we learn how to implement a generic hash map in C. The subject w
     - stdlib.h
     - string.h
     - stdbool.h
-	- errno.h
+    - errno.h
 
 5. You are allowed to use the following functions from the standard libraries:
     - malloc
@@ -28,7 +28,7 @@ In this subject we learn how to implement a generic hash map in C. The subject w
     - memmove
     - memcmp
     - fprintf
-	- exit
+    - exit
 
 6. You will provide a header filed called `map.h` at the root of the repository which will include prototypes for all of the functions in the library and definitions for related structures.
 
@@ -41,7 +41,10 @@ In this subject we learn how to implement a generic hash map in C. The subject w
     - re: Fclean and recompile
 
 9. Your will compile your program using either the `gcc` or `clang` compiler. When compiling you must use the following error-flags:
-	- Wall
+    - Wall
+    - Wextra
+    - Werror
+    - Wpedantic
 
 ## Implementation
 
