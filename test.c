@@ -97,61 +97,42 @@ void test_collision(void) {
 	printf("test: collision\t\tPASSED!\n");
 }
 
-static uint64_t hash_function_1(const void *key, const size_t len) {
-	uint8_t rk[] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a, 0x2f };
-	__m128i data = _mm_setzero_si128();
-	int size = len < 16 ? len : 16;
-	memcpy(&data, key, size);
-	__m128i aeskey = _mm_loadu_si128((__m128i *)rk);
-	__m128i result = _mm_aesenc_si128(data, aeskey);
-	return _mm_extract_epi64(result, 0);
-}
-
-# define SHIFT(x, n) ((x << n) >> n)
-
-static uint64_t hash_function_2(const void *key, const size_t len) {
-	uint8_t *data = (uint8_t *)key;
-	uint64_t hash64 = 14695981039346656037LLU;
-	uint64_t prime = 591798841;
-	uint64_t ndhead = 0;
-
-	if (len > 8) {
-		uint64_t cycles = ((len - 1) >> 4) + 1;
-		ndhead = len - (cycles << 3);
-		while (cycles--) {
-			hash64 = (hash64 ^ (*(uint64_t *)(data))) * prime;
-			hash64 = (hash64 ^ (*(uint64_t *)(data + ndhead))) * prime;
-			data += 8;
-		}
-		return (hash64 ^ (hash64 >> 32));
-	}
-	memcpy(&ndhead, data, len);
-	hash64 = (hash64 ^ SHIFT(ndhead, (8 - len) << 3)) * prime;
-	return (hash64 ^ (hash64 >> 32));
-}
-
-void bench_hash_functions(void) {
-	char *key = "Hello World!";
-	uint64_t hash1_result = hash_function_1(key, strlen(key));
+void bench_hash_function(void) {
+	char *key = "abcdefghijklmnopqrstuvwxyz";
+	size_t len = strlen(key);
+	// uint64_t hash1_result = hash_function(key, strlen(key));
 
 	clock_t start = clock();
 	for (volatile int i = 0; i < 1000000; i++) {
-		hash1_result = hash_function_1(key, strlen(key));
-		assert(hash1_result == hash1_result);
+		hash_function(key, len);
+		// assert(result == hash1_result);
 	}
 	clock_t end = clock();
 	double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
 	printf("bench: hash1\t\t%f\n", time_spent);
+}
 
-	uint64_t hash2_result = hash_function_2(key, strlen(key));
-	start = clock();
-	for (volatile int i = 0; i < 1000000; i++) {
-		hash2_result = hash_function_2(key, strlen(key));
-		assert(hash2_result == hash2_result);
+void test_hash_function_collisions(hasher_t f) {
+	int buckets[10000];
+
+	memset(buckets, 0, sizeof(buckets));
+
+	for (int i = 0; i < 10000; i++) {
+		int *a = malloc(sizeof(int));
+		*a = i;
+		uint64_t hash = f(a, sizeof(int));
+		buckets[hash % 10000]++;
+		free(a);
 	}
-	end = clock();
-	time_spent = (double)(end - start) / CLOCKS_PER_SEC;
-	printf("bench: hash2\t\t%f\n", time_spent);
+
+	int collisions = 0;
+	for (int i = 0; i < 10000; i++) {
+		if (buckets[i] > 1) {
+			collisions += buckets[i] - 1;
+		}
+	}
+
+	printf("test: hash collisions\t%d\n", collisions);
 }
 
 int main(void) {
@@ -159,7 +140,7 @@ int main(void) {
 	test_strmap();
 	test_intmap();
 	test_collision();
-	bench_hash_functions();
-	simple();
+	bench_hash_function();
+	test_hash_function_collisions(hash_function);
 	printf("\n");
 }

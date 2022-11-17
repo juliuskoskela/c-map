@@ -29,20 +29,6 @@ typedef struct map_private_s {
 	free_t free_val;
 } map_private_t;
 
-#ifdef __AVX__
-
-uint64_t hash_function(const void *key, const size_t len) {
-	uint8_t rk[] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a, 0x2f };
-	__m128i data = _mm_setzero_si128();
-	int size = len < 16 ? len : 16;
-	memcpy(&data, key, size);
-	__m128i aeskey = _mm_loadu_si128((__m128i *)rk);
-	__m128i result = _mm_aesenc_si128(data, aeskey);
-	return _mm_extract_epi64(result, 0);
-}
-
-#else
-
 # define SHIFT(x, n) ((x << n) >> n)
 
 uint64_t hash_function(const void *key, const size_t len) {
@@ -65,9 +51,6 @@ uint64_t hash_function(const void *key, const size_t len) {
 	hash64 = (hash64 ^ SHIFT(ndhead, (8 - len) << 3)) * prime;
 	return (hash64 ^ (hash64 >> 32));
 }
-
-#endif
-
 
 static node_t node_new(const void *key, void *value) {
 	return (node_t) {

@@ -6,7 +6,6 @@ As simple generic hash-map implementation for C.
 
 - Generic key and value types.
 - Arbitrary sized keys.
-- SIMD-optimized hashing for supported platforms.
 - Recursive deallocation of keys and values.
 
 ## Example

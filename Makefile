@@ -30,12 +30,12 @@ $(BIN):
 	@mkdir -p $(BIN)
 
 test: fclean static test-shared
-	@$(CC) $(WFLAGS) $(CFLAGS) $(OLEVEL)  $(TEST) $(TARGET).a -o $(TEST_TARGET)
+	@$(CC) $(WFLAGS) $(CFLAGS) $(OLEVEL) $(TEST) $(TARGET).a -o $(TEST_TARGET)
 	@echo "compiled: tests for $(TARGET).a"
 	@./$(TEST_TARGET)
 
 test-shared: fclean shared
-	@$(CC) $(WFLAGS) $(CFLAGS) $(OLEVEL)  $(TEST) -Wl,-rpath=$(BIN) -L$(BIN) -l$(NAME) -o $(TEST_TARGET)
+	@$(CC) $(WFLAGS) $(CFLAGS) $(OLEVEL) $(TEST) -Wl,-rpath=$(BIN) -L$(BIN) -l$(NAME) -o $(TEST_TARGET)
 	@echo "compiled: tests for $(TARGET).so"
 	@./$(TEST_TARGET)
 
