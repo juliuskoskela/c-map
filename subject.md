@@ -30,7 +30,7 @@ In this subject we learn how to implement a generic hash map in C. The subject w
     - fprintf
     - exit
 
-6. You will provide a header filed called `map.h` at the root of the repository which will include prototypes for all of the functions in the library and definitions for related structures.
+6. You will provide a header filed called `map.h` at the root of the repository which will include prototypes for all the functions in the library and definitions for related structures.
 
 7. The program will be compiled with the `make` command. You will provide a `Makefile` at the root of the repository. Your Makefile will compile both a static and shared versions of the library. The compiled binaries will be called `libmap.a` and `libmap.so` respectively. All produced object files and binaries will be put in a folder named `target`.
 
@@ -45,6 +45,8 @@ In this subject we learn how to implement a generic hash map in C. The subject w
     - Wextra
     - Werror
     - Wpedantic
+
+10. All functions that are not prototyped in a header-file must be decalared as static.
 
 ## Implementation
 

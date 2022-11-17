@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <immintrin.h>
 
 // We resize the map when the load factor * len exceeds the capacity.
 #define LOAD_FACTOR 0.75
@@ -30,7 +31,7 @@ typedef uint64_t (*hasher_t)(const void *, const size_t);
 typedef size_t (*keysize_t)(const void *);
 
 // Function that frees a key or a value.
-typedef void (*free_t)(const void *);
+typedef void (*free_t)(void *);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// A hash map.
@@ -40,6 +41,10 @@ typedef struct map_s {
 	// struct map_private_s.
 	uint8_t priv[56];
 }	map_t;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Default hash funbction.
+uint64_t hash_function(const void *key, const size_t len);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Create a new map. The map will be empty, and no allocation will
@@ -139,5 +144,7 @@ bool map_remove(map_t *map, const void *key);
 /// @param map The map to take from.
 /// @param key The key to take.
 void *map_take(map_t *src, const void *key);
+
+void map_print_cells(map_t *map);
 
 #endif

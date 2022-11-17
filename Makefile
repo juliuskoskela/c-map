@@ -10,18 +10,19 @@ SRC=map.c
 TEST=test.c
 OBJ=$(BIN)/$(SRC:.c=.o)
 CC=gcc
-OLEVEL=-O3
+OLEVEL= -O3
+CFLAGS= -mavx -march=native
 WFLAGS= -Wall -Wextra -Werror -Wunused
 
 all: shared static
 
 static: $(BIN)
-	@$(CC) $(WFLAGS) -c $(SRC) -o $(OBJ)
+	@$(CC) $(WFLAGS) $(CFLAGS) $(OLEVEL) -c $(SRC) -o $(OBJ)
 	@ar -rcs $(TARGET).a $(OBJ)
 	@echo "compiled: $(TARGET).a"
 
 shared: $(BIN)
-	@$(CC) -fPIC $(WFLAGS) -c $(SRC) -o $(OBJ)
+	@$(CC) -fPIC $(WFLAGS) $(CFLAGS) $(OLEVEL) -c $(SRC) -o $(OBJ)
 	@$(CC) -shared -o $(TARGET).so $(OBJ)
 	@echo "compiled: $(TARGET).so"
 
@@ -29,12 +30,12 @@ $(BIN):
 	@mkdir -p $(BIN)
 
 test: fclean static test-shared
-	@$(CC) $(WFLAGS) $(TEST) $(TARGET).a -o $(TEST_TARGET)
+	@$(CC) $(WFLAGS) $(CFLAGS) $(OLEVEL)  $(TEST) $(TARGET).a -o $(TEST_TARGET)
 	@echo "compiled: tests for $(TARGET).a"
 	@./$(TEST_TARGET)
 
 test-shared: fclean shared
-	@$(CC) $(WFLAGS) $(TEST) -Wl,-rpath=$(BIN) -L$(BIN) -l$(NAME) -o $(TEST_TARGET)
+	@$(CC) $(WFLAGS) $(CFLAGS) $(OLEVEL)  $(TEST) -Wl,-rpath=$(BIN) -L$(BIN) -l$(NAME) -o $(TEST_TARGET)
 	@echo "compiled: tests for $(TARGET).so"
 	@./$(TEST_TARGET)
 

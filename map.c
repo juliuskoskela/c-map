@@ -10,16 +10,13 @@
 # define IS_FULL(map) (map->len > (map->cap * LOAD_FACTOR))
 # define IS_UNINIT(map) (map->cap == 0)
 # define IS_EMPTY(map) (map->len == 0)
-# define IS_TOMBSTONE(node) (node->tombstone)
 # define IS_VACANT(node) (node->key == NULL)
 # define IS_OCCUPIED(node) (!IS_VACANT(node))
-# define SHIFT(x, n) ((x << n) >> n)
 # define KEYCMP(a, b, as, bs) (as == bs && memcmp(a, b, as) == 0)
 
 typedef struct node_s {
 	void *value;
 	const void *key;
-	bool tombstone;
 } node_t;
 
 typedef struct map_private_s {
@@ -32,7 +29,23 @@ typedef struct map_private_s {
 	free_t free_val;
 } map_private_t;
 
-static uint64_t hash_function(const void *key, const size_t len) {
+#ifdef __AVX__
+
+uint64_t hash_function(const void *key, const size_t len) {
+	uint8_t rk[] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a, 0x2f };
+	__m128i data = _mm_setzero_si128();
+	int size = len < 16 ? len : 16;
+	memcpy(&data, key, size);
+	__m128i aeskey = _mm_loadu_si128((__m128i *)rk);
+	__m128i result = _mm_aesenc_si128(data, aeskey);
+	return _mm_extract_epi64(result, 0);
+}
+
+#else
+
+# define SHIFT(x, n) ((x << n) >> n)
+
+uint64_t hash_function(const void *key, const size_t len) {
 	uint8_t *data = (uint8_t *)key;
 	uint64_t hash64 = 14695981039346656037LLU;
 	uint64_t prime = 591798841;
@@ -53,25 +66,26 @@ static uint64_t hash_function(const void *key, const size_t len) {
 	return (hash64 ^ (hash64 >> 32));
 }
 
+#endif
+
+
 static node_t node_new(const void *key, void *value) {
 	return (node_t) {
 		.key = key,
-		.value = value,
-		.tombstone = false
+		.value = value
 	};
 }
 
 static node_t node_empty(void) {
 	return (node_t) {
 		.key = NULL,
-		.value = NULL,
-		.tombstone = false
+		.value = NULL
 	};
 }
 
 static void node_free(node_t *node, free_t free_key, free_t free_val) {
 	if (node->key != NULL && free_key != NULL) {
-		free_key(node->key);
+		free_key((void *)node->key);
 	}
 	if (node->value != NULL && free_val != NULL) {
 		free_val(node->value);
@@ -151,6 +165,10 @@ size_t map_len(const map_t map) {
 	return priv->len;
 }
 
+bool map_contains(const map_t map, const void *key) {
+	return map_get(map, key) != NULL;
+}
+
 void *map_get(const map_t map, const void *key) {
 	if (!key) {
 		PANIC("Invalid map or key");
@@ -161,32 +179,17 @@ void *map_get(const map_t map, const void *key) {
 	}
 	size_t keysize = priv->keysize(key);
 	uint64_t hash = priv->hasher(key, keysize);
-	node_t *grave = NULL;
 	size_t i = 0;
 	while (1) {
 		size_t probe = PROBE(hash + i, priv->cap);
 		node_t *curr = &priv->data[probe];
-		if (IS_OCCUPIED(curr) && KEYCMP(key, curr->key, keysize, priv->keysize(curr->key))) {
-			if (grave) {
-				*grave = priv->data[probe];
-				priv->data[probe] = node_empty();
-				curr = grave;
-			}
+		if (IS_VACANT(curr)) {
+			return NULL;
+		} else if (KEYCMP(key, curr->key, keysize, priv->keysize(curr->key))) {
 			return curr->value;
-		} else if (IS_VACANT(curr)) {
-			if (curr->tombstone == true) {
-				grave = curr;
-			} else {
-				break;
-			}
 		}
 		i++;
 	}
-	return NULL;
-}
-
-bool map_contains(const map_t map, const void *key) {
-	return map_get(map, key) != NULL;
 }
 
 void *map_insert(map_t *map, const void *key, void *value) {
@@ -205,11 +208,11 @@ void *map_insert(map_t *map, const void *key, void *value) {
 	while (1) {
 		size_t probe = PROBE(hash + i, priv->cap);
 		node_t *curr = &priv->data[probe];
-		if (IS_VACANT(curr) || IS_TOMBSTONE(curr)) {
+		if (IS_VACANT(curr)) {
 			*curr = node_new(key, value);
 			priv->len++;
 			return NULL;
-		} else if (IS_OCCUPIED(curr) && KEYCMP(key, curr->key, keysize, priv->keysize(curr->key))) {
+		} else if (KEYCMP(key, curr->key, keysize, priv->keysize(curr->key))) {
 			void *oldval = curr->value;
 			curr->value = value;
 			return oldval;
@@ -234,9 +237,9 @@ void *map_replace(map_t *map, const void *key, void *value) {
 	while (1) {
 		size_t probe = PROBE(hash + i, priv->cap);
 		node_t *curr = &priv->data[probe];
-		if (IS_VACANT(curr) || IS_TOMBSTONE(curr)) {
+		if (IS_VACANT(curr)) {
 			return NULL;
-		} else if (IS_OCCUPIED(curr) && KEYCMP(key, curr->key, keysize, priv->keysize(curr->key))) {
+		} else if (KEYCMP(key, curr->key, keysize, priv->keysize(curr->key))) {
 			void *oldval = curr->value;
 			curr->value = value;
 			return oldval;
@@ -261,11 +264,11 @@ void *map_emplace(map_t *map, const void *key, void *value) {
 	while (1) {
 		size_t probe = PROBE(hash + i, priv->cap);
 		node_t *curr = &priv->data[probe];
-		if (IS_VACANT(curr) || IS_TOMBSTONE(curr)) {
+		if (IS_VACANT(curr)) {
 			*curr = node_new(key, value);
 			priv->len++;
 			return NULL;
-		} else if (IS_OCCUPIED(curr) && KEYCMP(key, curr->key, keysize, priv->keysize(curr->key))) {
+		} else if (KEYCMP(key, curr->key, keysize, priv->keysize(curr->key))) {
 			return curr->value;
 		}
 		i++;
@@ -288,7 +291,23 @@ bool map_remove(map_t *map, const void *key) {
 		if (IS_VACANT(curr)) {
 			return false;
 		} else if (KEYCMP(key, curr->key, keysize, priv->keysize(curr->key))) {
-			node_free(curr, priv->free_key, priv->free_val);
+			// Find end of collision chain
+			node_t *end = &priv->data[PROBE(hash + i, priv->cap)];
+			while (end->key && hash == priv->hasher(end->key, priv->keysize(end->key))) {
+				i++;
+				end = &priv->data[PROBE(hash + i, priv->cap)];
+			}
+			end = &priv->data[PROBE(hash + i - 1, priv->cap)];
+			if (end == curr) {
+				// No collision chain
+				node_free(curr, priv->free_key, priv->free_val);
+				*curr = node_empty();
+			} else {
+				// Collision chain
+				node_free(curr, priv->free_key, priv->free_val);
+				memcpy(curr, end, sizeof(node_t));
+				*end = node_empty();
+			}
 			priv->len--;
 			return true;
 		}
@@ -309,4 +328,24 @@ void *map_take(map_t *map, const void *key) {
 		map_remove(map, key);
 	}
 	return value;
+}
+
+void map_print_cells(map_t *map) {
+	if (!map) {
+		PANIC("Invalid map");
+	}
+	map_private_t *priv = (map_private_t *)map;
+	if (IS_UNINIT(priv)) {
+		return;
+	}
+	for (size_t i = 0; i < priv->cap; i++) {
+		node_t *curr = &priv->data[i];
+		if (IS_OCCUPIED(curr)) {
+			printf("%zu: is occupied\n", i);
+		} else if (IS_VACANT(curr)) {
+			printf("%zu: is vacant\n", i);
+		} else {
+			printf("%zu: is empty\n", i);
+		}
+	}
 }
