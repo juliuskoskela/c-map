@@ -5,13 +5,9 @@
 /// @brief A hash for the C programming language.
 #ifndef MAP_H
 #define MAP_H
-#include <stdio.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <errno.h>
-#include <immintrin.h>
 
 // We resize the map when the load factor * len exceeds the capacity.
 #define LOAD_FACTOR 0.75

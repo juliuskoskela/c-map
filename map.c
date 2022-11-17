@@ -4,6 +4,10 @@
 ///
 /// @brief A hash map implementation.
 #include "map.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <immintrin.h>
 
 # define ERROR(msg) { fprintf(stderr, "%s\n%s\n%d\n", msg, __FILE__, __LINE__); }
 # define PANIC(msg) { ERROR(msg); exit(EINVAL); }

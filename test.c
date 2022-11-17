@@ -1,6 +1,8 @@
 #include "map.h"
 #include <assert.h>
 #include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 size_t keysize_str(const void *a) {
 	return strlen((const char *)a);
@@ -109,20 +111,17 @@ void bench_hash_function(void) {
 	}
 	clock_t end = clock();
 	double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
-	printf("bench: hash1\t\t%f\n", time_spent);
+	printf("bench: hash_function\t%f\n", time_spent);
 }
 
-void test_hash_function_collisions(hasher_t f) {
+void count_collosions(hasher_t f) {
 	int buckets[10000];
 
 	memset(buckets, 0, sizeof(buckets));
 
 	for (int i = 0; i < 10000; i++) {
-		int *a = malloc(sizeof(int));
-		*a = i;
-		uint64_t hash = f(a, sizeof(int));
+		uint64_t hash = f(&i, sizeof(int));
 		buckets[hash % 10000]++;
-		free(a);
 	}
 
 	int collisions = 0;
@@ -132,7 +131,7 @@ void test_hash_function_collisions(hasher_t f) {
 		}
 	}
 
-	printf("test: hash collisions\t%d\n", collisions);
+	printf("collisions:\t\t%d\n", collisions);
 }
 
 int main(void) {
@@ -141,6 +140,6 @@ int main(void) {
 	test_intmap();
 	test_collision();
 	bench_hash_function();
-	test_hash_function_collisions(hash_function);
+	count_collosions(hash_function);
 	printf("\n");
 }
